@@ -11,7 +11,6 @@ tab1, tab2 = st.tabs(["🔑 Cloud Secrets Finder", "📡 Threat Infrastructure I
 with tab1:
     st.header("Search Text for Exposed Secrets")
     
-    # Sample data for testing without copy-pasting
     sample_env = """# Production Server Environment Variables
 PORT=8080
 DB_HOST=192.168.1.50
@@ -37,9 +36,9 @@ TELEGRAM_BOT_TOKEN=123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"""
     
     if st.button("Scan Secrets"):
         if input_data:
-            # Regex Patterns
             aws_keys = re.findall(r'AKIA[0-9A-Z]{16}', input_data)
-            telegram_tokens = re.findall(r'\d{9,10}:[A-Za-z0-9_-]{35}', input_data)
+            # Flexible pattern for Telegram Bot Tokens
+            telegram_tokens = re.findall(r'\d{8,10}:[A-Za-z0-9_-]{20,40}', input_data)
             
             found = False
             if aws_keys:
