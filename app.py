@@ -1,44 +1,40 @@
-import streamlit as st
-import socket
-import requests
-from urllib.parse import urlparse
+import streamlit as st, re, requests, socket
 
-# Web Page Styling Configuration
-st.set_page_config(page_title="Network Intelligence Tool", page_icon="🛡️", layout="centered")
+st.set_page_config(page_title="Exposed Secrets & Threat Intel", page_icon="🛡️", layout="wide")
+st.title("🛡️ Exposed Secrets & Threat Intel Scanner")
 
-st.title("🛡️ Open Source Network Intelligence Tool")
-st.markdown("Analyze target domains instantly to check hosting infrastructure and security layers.")
+tab1, tab2 = st.tabs(["🔑 Cloud Secrets Finder", "📡 Threat Infrastructure Intel"])
 
-st.subheader("🌐 Scan Domain / Infrastructure")
-domain_input = st.text_input("Enter Target Domain or URL:", placeholder="example.com")
+with tab1:
+    st.header("Search Text for Exposed Secrets")
+    text_input = st.text_area("Paste Code, Logs, or Config Text here:")
+    if st.button("Scan Secrets"):
+        patterns = {
+            "AWS Access Key": r"AKIA[0-9A-Z]{16}",
+            "Generic API Key": r"[a-zA-Z0-9_-]{32,45}",
+            "Environment DB URL": r"postgres://[a-zA-Z0-9_]+:[a-zA-Z0-9_]+@[a-zA-Z0-9_.-]+:[0-9]+/[a-zA-Z0-9_]+"
+        }
+        found = False
+        for secret_type, pattern in patterns.items():
+            matches = re.findall(pattern, text_input)
+            if matches:
+                found = True
+                st.error(f"⚠️ {secret_type} Detected: {matches}")
+        if not found:
+            st.success("✅ No secrets detected in the provided text.")
 
-if st.button("Run Intelligence Check"):
-    if domain_input:
-        # Clean the input to get just the domain
-        clean_domain = urlparse(domain_input).netloc if "://" in domain_input else domain_input
-        st.info(f"🔍 Resolving Infrastructure for: **{clean_domain}**")
-        
-        try:
-            # Get IP Address
-            ip_address = socket.gethostbyname(clean_domain)
-            st.success(f"📌 Target IP Address: `{ip_address}`")
-            
-            # Fetch GeoIP and ISP Data
-            res = requests.get(f"http://ip-api.com/json/{ip_address}").json()
-            if res["status"] == "success":
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(label="Server Country", value=res.get('country', 'Unknown'))
-                    st.metric(label="Server City", value=res.get('city', 'Unknown'))
-                with col2:
-                    st.metric(label="Hosting / ISP", value=res.get('isp', 'Unknown'))
-                
-                # Check for Cloudflare Proxy
-                if "cloudflare" in res.get('isp', '').lower():
-                    st.error("⚠️ [NOTICE] Target identity is masked behind the Cloudflare network layer.")
+with tab2:
+    st.header("Analyze IP / Infrastructure")
+    ip_input = st.text_input("Enter IP Address (e.g. 8.8.8.8):")
+    if st.button("Check Threat Intel"):
+        if ip_input:
+            try:
+                host = socket.gethostbyaddr(ip_input)[0]
+                st.info(f"🌐 Hostname: {host}")
+            except:
+                st.warning("Could not resolve Reverse DNS.")
+            res = requests.get(f"https://ipapi.co/{ip_input}/json/").json()
+            if "country_name" in res:
+                st.write(f"📍 **Country:** {res.get('country_name')} | **ASN:** {res.get('asn')} | **Org:** {res.get('org')}")
             else:
-                st.error("[-] Identity resolution failed for this IP.")
-        except:
-            st.error("[-] Could not resolve domain. The server might be down or invalid.")
-    else:
-        st.warning("Please enter a domain name first.")
+                st.error("Failed to fetch IP details.")
